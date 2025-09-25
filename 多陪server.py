@@ -74,7 +74,7 @@ HEADERS = {
     "accept": "*/*",
     "content-type": "application/x-www-form-urlencoded",
     "platform": "app",
-    "authorization-token": "991ae2a76bc94fc3a970b8d60e525c1d",
+    "authorization-token": "8a2a4de7e0d14d74bc505e9f24fe5b8a",
     "sid": "47",
     "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Html5Plus/1.0 (Immersed/20) uni-app",
     "accept-language": "en-GB,en;q=0.9",
@@ -153,7 +153,7 @@ def confirm_order(order_id):
                 break
             log(f"[抢单结果] {confirm_rep}")
             if '未满足' in confirm_rep:
-                time.sleep(2.5)
+                time.sleep(1.5)
                 log("等待中...继续尝试")
                 continue
             break
