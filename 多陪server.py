@@ -4,13 +4,14 @@ import time
 import json
 import base64
 import requests
+import random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 # import os
 # import platform
-
+tz = timezone(timedelta(hours=8))
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -71,16 +72,16 @@ KEY_HEX = "81b120ef00216c33b266763abb02e6d1"
 IV_HEX = "e6a4cc0507dfe344b042289eeb945dce"
 
 HEADERS = {
-    "accept": "*/*",
-    "content-type": "application/x-www-form-urlencoded",
     "platform": "app",
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Content-Type": "application/x-www-form-urlencoded",
     "authorization-token": "8a2a4de7e0d14d74bc505e9f24fe5b8a",
     "sid": "47",
-    "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Html5Plus/1.0 (Immersed/20) uni-app",
-    "accept-language": "en-GB,en;q=0.9",
-    "accept-encoding": "gzip, deflate, br",
-    "pragma": "no-cache",
-    "cache-control": "no-cache"
+    "Host": "api.duopei.feiniaowangluo.com",
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Html5Plus/1.0 (Immersed/20) uni-app",
+    "Accept-Language": "en-GB,en;q=0.9",
+    "Connection": "keep-alive"
 }
 
 BASE_URL = "https://api.duopei.feiniaowangluo.com"
@@ -140,21 +141,45 @@ def extract_order_id(decrypted_json_str):
         log(f"[提取订单 ID 失败] {e}")
     return None
 
+def extract_ts(decrypted_json_str):
+    try:
+        data = json.loads(decrypted_json_str)
+        li = data.get("list", [])
+        timestamp = li[0].get("createTime") / 1000
+        print(timestamp)
+
+        return timestamp
+    except Exception as e:
+        print(f"[提取订单 ts 失败] {e}")
+    return None
+
+
+def sleep_time(create_ts, wait_time):
+    now_ts = datetime.datetime.now(tz).timestamp()
+    target_ts = create_ts + wait_time + random.uniform(2.7, 5)
+    sleep_seconds = target_ts - now_ts
+    if sleep_seconds < 0:
+        random_sleep = random.uniform(1, 2.5)
+    else:
+        random_sleep = random.uniform(sleep_seconds, sleep_seconds+3.25)
+    print(sleep_seconds)
+    time.sleep(random_sleep)
 # ========== 抢单 ==========
-def confirm_order(order_id):
+def confirm_order(order_id,create_ts):
     url = f"{BASE_URL}/s/c/order/confirm"
     data = {"id": order_id}
     try:
+        sleep_time(create_ts, 6.5)
         while running:
-            resp = session.post(url, data=data, timeout=1.5)
+            resp = session.post(url, data=data, timeout=3.5)
             da = resp.json()
             confirm_rep = decrypt_aes_cbc(da["response"], KEY_HEX, IV_HEX)
             if not confirm_rep:
                 break
             log(f"[抢单结果] {confirm_rep}")
             if '未满足' in confirm_rep:
-                time.sleep(1.5)
                 log("等待中...继续尝试")
+                time.sleep(4.5)
                 continue
             break
     except Exception as e:
@@ -164,20 +189,21 @@ def confirm_order(order_id):
 def run_loop(interval):
     global running
     while running:
-        now = datetime.now()
+        now = datetime.now(tz)
         print("刷新时间 =", now.strftime("%H:%M:%S"))
         decrypted = refresh_list()
         if decrypted:
             order_id = extract_order_id(decrypted)
             if order_id:
+                create_ts = extract_ts(decrypted)
                 log(f"[发现订单] ID = {order_id}")
-                threading.Thread(target=confirm_order, args=(order_id,), daemon=True).start()
+                threading.Thread(target=confirm_order, args=(order_id,create_ts), daemon=True).start()
                 # play_sound()
             else:
                 log("[无新订单]")
         else:
             log("[解密失败或网络异常]")
-        time.sleep(interval)
+        time.sleep(random.uniform(2, 3.5))
 
 # ========== 控制函数 ==========
 def start_grabbing():
