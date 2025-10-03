@@ -125,6 +125,7 @@ def refresh_list():
 
 # ========== 提取订单 ID ==========
 def extract_order_id(decrypted_json_str):
+    print(decrypted_json_str)
     try:
         data = json.loads(decrypted_json_str)
         order_list = data.get("list", [])
