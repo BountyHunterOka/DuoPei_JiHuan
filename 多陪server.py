@@ -1,18 +1,22 @@
+from fastapi.middleware.cors import CORSMiddleware
+
 from fastapi import FastAPI
 import threading
 import time
 import json
 import base64
 import requests
-import random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
+import random
+# import os
+# import platform
 from datetime import datetime, timezone, timedelta
-from fastapi.middleware.cors import CORSMiddleware
 # import os
 # import platform
 tz = timezone(timedelta(hours=8))
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,12 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/start")
 def start_book():
     thread = threading.Thread(target=start_grabbing, daemon=True)
     thread.start()
     return "开始抢单"
-
 
 @app.get("/stop")
 def stop_book():
@@ -36,12 +40,12 @@ def stop_book():
 @app.get("/voice_start")
 def start_voice():
     start_talking()
-    return "开始连麦单"
+    return "过滤连麦单"
 
 @app.get("/voice_stop")
 def stop_voice():
     stop_talking()
-    return "结束连麦单"
+    return "不过滤连麦单"
 
 @app.get("/check_running")
 def check():
@@ -49,6 +53,13 @@ def check():
      return "运行中"
     else:
      return "已暂停"
+
+@app.get("/check_talking")
+def check():
+    if voice_talking:
+     return "过滤连麦中"
+    else:
+     return "未过滤连麦"
 
 # @app.get("/items/{item_id}")
 # def read_item(item_id: int, q: Union[str, None] = None):
@@ -89,7 +100,7 @@ session = requests.Session()
 session.headers.update(HEADERS)
 
 running = False
-voice_talking = False
+voice_talking = True
 
 # ========== 日志输出 ==========
 def log(text):
@@ -129,7 +140,16 @@ def extract_order_id(decrypted_json_str):
     try:
         data = json.loads(decrypted_json_str)
         order_list = data.get("list", [])
+        # sensitive_words = ['腿','胸','不续单','狱卒','玉足','欲姐','萝莉','广东','四川','照片','黑丝','白丝','四爱']
         for order in order_list:
+            # memo = order.get("userMemo", "")
+            # if any(word in memo for word in sensitive_words):
+            #     log("[跳过订单] 包含用户定义的敏感词")
+            #     continue
+            # amount = order_list[0].get("totalAmount")
+            # if amount < 1500:
+            #     log('价格低于15，自动过滤')
+            #     continue
             if order.get("userMemo"):
                 log("[跳过订单] 有备注")
                 continue
@@ -142,69 +162,39 @@ def extract_order_id(decrypted_json_str):
         log(f"[提取订单 ID 失败] {e}")
     return None
 
-def extract_ts(decrypted_json_str):
-    try:
-        data = json.loads(decrypted_json_str)
-        li = data.get("list", [])
-        timestamp = li[0].get("createTime") / 1000
-        print(timestamp)
-
-        return timestamp
-    except Exception as e:
-        print(f"[提取订单 ts 失败] {e}")
-    return None
-
-
-def sleep_time(create_ts, wait_time):
-    now_ts = datetime.now(tz).timestamp()
-    target_ts = create_ts + wait_time + random.uniform(3.7, 5)
-    sleep_seconds = target_ts - now_ts
-    if sleep_seconds < 0:
-        random_sleep = random.uniform(1, 2.5)
-    else:
-        random_sleep = random.uniform(sleep_seconds, sleep_seconds+2.25)
-    print(sleep_seconds)
-    time.sleep(random_sleep)
-# ========== 抢单 ==========
-def confirm_order(order_id,create_ts):
+def confirm_order(order_id):
     url = f"{BASE_URL}/s/c/order/confirm"
     data = {"id": order_id}
     try:
-        sleep_time(create_ts, 15.5)
         while running:
+            time.sleep(7)
             resp = session.post(url, data=data, timeout=3.5)
             da = resp.json()
             confirm_rep = decrypt_aes_cbc(da["response"], KEY_HEX, IV_HEX)
             if not confirm_rep:
                 break
             log(f"[抢单结果] {confirm_rep}")
-            # if '未满足' in confirm_rep:
-            #     log("等待中...继续尝试")
-            #     time.sleep(4.5)
-            #     continue
             break
     except Exception as e:
         log(f"[抢单失败] {e}")
 
-# ========== 主循环 ==========
 def run_loop(interval):
     global running
     while running:
-        now = datetime.now(tz)
-        print("刷新时间 =", now.strftime("%H:%M:%S"))
+        print("刷新时间 =", datetime.now(tz))
         decrypted = refresh_list()
         if decrypted:
             order_id = extract_order_id(decrypted)
             if order_id:
-                create_ts = extract_ts(decrypted)
+                # create_ts = extract_ts(decrypted)
                 log(f"[发现订单] ID = {order_id}")
-                confirm_order(order_id, create_ts)
+                confirm_order(order_id)
                 # play_sound()
             else:
                 log("[无新订单]")
         else:
             log("[解密失败或网络异常]")
-        time.sleep(random.uniform(2, 3.5))
+        time.sleep(random.uniform(1, 2))
 
 # ========== 控制函数 ==========
 def start_grabbing():
@@ -230,11 +220,10 @@ def stop_grabbing():
 def start_talking():
     global voice_talking
     voice_talking = True
-    log("[开始连麦单]")
+    log("[过滤连麦单.]")
 
 
 def stop_talking():
     global voice_talking
     voice_talking = False
-    log("[结束连麦单]")
-
+    log("[不过滤连麦单.]")
