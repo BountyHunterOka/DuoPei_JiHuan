@@ -142,7 +142,7 @@ def extract_order_id(decrypted_json_str):
         order_list = data.get("list", [])
         sensitive_words = ['腿','胸','不续单','狱卒','玉足','欲姐','萝莉','广东','四川','照片','黑丝','白丝','四爱']
         for order in order_list:
-            # memo = order.get("userMemo", "")
+            memo = order.get("userMemo", "")
             if any(word in memo for word in sensitive_words):
                 log("[跳过订单] 包含用户定义的敏感词")
                 continue
