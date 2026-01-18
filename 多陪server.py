@@ -87,7 +87,7 @@ HEADERS = {
     "Accept": "*/*",
     "Accept-Encoding": "gzip, deflate, br",
     "Content-Type": "application/x-www-form-urlencoded",
-    "authorization-token": "df9828393e154f42961888ec61c7c11f",
+    "authorization-token": "642a46d4190349cda41759d8bd008661",
     "sid": "47",
     "Host": "api.duopei.feiniaowangluo.com",
     "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Html5Plus/1.0 (Immersed/20) uni-app",
@@ -167,7 +167,7 @@ def confirm_order(order_id):
     data = {"id": order_id}
     try:
         while running:
-            time.sleep(5.7)
+            time.sleep(5.58)
             resp = session.post(url, data=data, timeout=3.5)
             da = resp.json()
             confirm_rep = decrypt_aes_cbc(da["response"], KEY_HEX, IV_HEX)
