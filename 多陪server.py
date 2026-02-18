@@ -12,7 +12,6 @@ import random
 # import os
 # import platform
 from datetime import datetime, timezone, timedelta
-# import os
 # import platform
 tz = timezone(timedelta(hours=8))
 app = FastAPI()
